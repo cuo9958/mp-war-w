@@ -30,4 +30,11 @@ interface Window {
     clipboardData?: any;
     netscape?: any;
     Components?: any;
+    createjs: any;
+}
+
+interface ICreateStage {
+    addChild: (obj: any) => void;
+    update: () => void;
+    on: any;
 }
