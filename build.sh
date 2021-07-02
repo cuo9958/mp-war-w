@@ -4,4 +4,4 @@ git pull
 
 npm run build
 
-cp -rf build/ /www/wwwroot/mp.guofangchao.com
+cp -rf dist/ /www/wwwroot/mp.guofangchao.com/
