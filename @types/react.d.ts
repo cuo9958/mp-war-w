@@ -32,9 +32,3 @@ interface Window {
     Components?: any;
     createjs: any;
 }
-
-interface ICreateStage {
-    addChild: (obj: any) => void;
-    update: () => void;
-    on: any;
-}

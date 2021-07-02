@@ -4,9 +4,7 @@
 import React, { MouseEvent } from 'react';
 import './index.less';
 import { Button, Input, Message, Dialog, ColorPicker } from 'element-react';
-// import request from '../../services/request';
-
-const createjs: any = window.createjs;
+import request from '../../services/request';
 
 interface iState {
     width: number;
@@ -33,12 +31,6 @@ export default class extends React.Component<iReactRoute, iState> {
             move_x: 0,
             move_y: 0,
         };
-        for (let index = 0; index < 40000; index++) {
-            this.list.push({
-                x: index,
-                color: '#ccc',
-            });
-        }
     }
     list: any = [];
     window_w = 0;
@@ -48,7 +40,10 @@ export default class extends React.Component<iReactRoute, iState> {
         return (
             <div id="container">
                 <div id="content">
-                    <canvas draggable={true} id="game" style={{ width, height, transform: 'translate3d(' + move_x + 'px,' + move_y + 'px,0)' }}></canvas>
+                    <canvas id="game" style={{ width, height, transform: 'translate3d(' + move_x + 'px,' + move_y + 'px,0)' }}></canvas>
+                    <div className="test_x" style={{ top: this.state.y }}></div>
+                    <div className="test_y" style={{ left: this.state.x }}></div>
+                    <div id="top_canvas" style={{ width, height, transform: 'translate3d(' + move_x + 'px,' + move_y + 'px,0)' }}></div>
                 </div>
                 <div id="top_nav">
                     <Input value={x} placeholder="x坐标" className="input px" />
@@ -64,40 +59,65 @@ export default class extends React.Component<iReactRoute, iState> {
     }
 
     MAX_NUMBER = 2000;
-    stage: any = null;
+    ctx: any = null;
     componentDidMount() {
         let war: any = document.getElementById('game');
         if (!war) return;
         war.width = this.MAX_NUMBER;
         war.height = this.MAX_NUMBER;
-
-        const stage: ICreateStage = new createjs.Stage('game');
-        this.stage = stage;
-        war.addEventListener('mousedown', (e: any) => this.onStartMove(e));
+        this.ctx = war.getContext('2d');
+        // const context = this.ctx;
+        // context.save();
+        // context.lineWidth = 1;
+        // context.strokeStyle = '#666';
+        // for (let index = 0; index < 200; index++) {
+        //     context.beginPath();
+        //     context.moveTo(0, index * 10);
+        //     context.lineTo(this.MAX_NUMBER, index * 10);
+        //     context.moveTo(index * 10, 0);
+        //     context.lineTo(index * 10, this.MAX_NUMBER);
+        //     context.closePath();
+        //     context.stroke();
+        // }
+        // context.restore();
+        const top_canvas: any = document.getElementById('top_canvas');
+        top_canvas.addEventListener('mousedown', (e: any) => this.onStartMove(e));
+        top_canvas.addEventListener('mouseup', (e: any) => this.test(e));
         document.addEventListener('mousemove', (e: any) => this.onMove(e));
         document.addEventListener('mouseup', (e: any) => this.onEndMove(e));
         this.showData();
     }
 
-    showData() {
-        const stage = this.stage;
-        for (let index = 0; index < this.list.length; index++) {
-            const item = this.list[index];
-            const x = Math.floor(index / 200) * 10;
-            const y = (index % 200) * 10;
-            const rect = new createjs.Shape();
-            rect.graphics.beginFill(item.color).drawRect(x, y, 10, 10);
-            rect.name = x + '_' + y;
-            rect.lastColor = item.color;
-            stage.addChild(rect);
-            rect.addEventListener('click', () => {
-                this.huaOne(x, y);
-                this.setState({ x, y });
-                return false;
-            });
+    test(e: any) {
+        this.setState({ x: e.pageX, y: e.pageY });
+        const x = e.offsetX;
+        const y = e.offsetY;
+        const curr_x = Math.floor((200 / this.state.width) * x);
+        const curr_y = Math.floor((200 / this.state.height) * y);
+        // console.log(curr_x, curr_y);
+        this.huaOne(curr_x, curr_y);
+    }
+    async showData() {
+        try {
+            const data: any[] = await request.get('/test');
+            this.list = data;
+            this.DrawRect();
+        } catch (error) {
+            console.log(error);
         }
-
-        stage.update();
+    }
+    DrawRect() {
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.lineWidth = 0;
+        this.list.forEach((item: any) => {
+            const x = parseInt(item.x);
+            const y = parseInt(item.y);
+            const color = item.color;
+            ctx.fillStyle = color;
+            ctx.fillRect(x * 10, y * 10, 10, 10);
+        });
+        ctx.restore();
     }
     //放大
     onBig() {
@@ -123,50 +143,69 @@ export default class extends React.Component<iReactRoute, iState> {
     onStartMove(e: MouseEvent) {
         this._x = this.state.move_x;
         this._y = this.state.move_y;
-        this._start_x = e.screenX;
-        this._start_y = e.screenY;
+        this._start_x = e.pageX;
+        this._start_y = e.pageY;
         this._is_move = true;
         return false;
     }
+    is_move = false;
     onMove = (e: MouseEvent) => {
-        if (!this._is_move) return;
-        const x = e.screenX - this._start_x;
-        const y = e.screenY - this._start_y;
+        if (!this._is_move) {
+            this.setState({ x: e.pageX, y: e.pageY });
+            return;
+        }
+        this.is_move = true;
+        const x = e.pageX - this._start_x;
+        const y = e.pageY - this._start_y;
         this.setState({
             move_x: this._x + x,
             move_y: this._y + y,
+            x: e.pageX,
+            y: e.pageY,
         });
         return false;
     };
     onEndMove(e: MouseEvent) {
         this._is_move = false;
+        this.is_move = false;
     }
-    lastName = '';
     //画一个框
     huaOne(x: number, y: number) {
-        const name = x + '_' + y;
-        if (this.lastName && name !== this.lastName) {
-            const temp = this.stage.getChildByName(this.lastName);
-            temp.graphics.clear();
-            temp.graphics.beginFill(temp.lastColor).drawRect(temp.graphics.command.x, temp.graphics.command.y, 10, 10);
-        }
-        this.lastName = name;
-        const obj = this.stage.getChildByName(name);
-        obj.graphics.beginStroke('#ff0000').drawRect(x, y, 10, 10);
-        this.stage.update();
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.fillStyle = '#ccc';
+        ctx.fillRect(0, 0, this.MAX_NUMBER, this.MAX_NUMBER);
+        ctx.restore();
+        this.DrawRect();
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x * 10 + 1, y * 10 + 1, 8, 8);
+        ctx.lineCap = 'square';
+        ctx.strokeStyle = '#f00';
+        ctx.stroke();
+        ctx.closePath();
+        ctx.restore();
+        this.dot = { x, y };
     }
+    dot = { x: 0, y: 0 };
     //展示坐标
     showPX(screen_x: number, screen_y: number) {}
 
     fillPX(x: number, y: number, color: string) {}
     //画一个块
-    draw() {
-        const name = this.state.x + '_' + this.state.y;
-        const obj = this.stage.getChildByName(name);
-        console.log(obj);
-        obj.graphics.clear();
-        obj.lastColor = this.state.color;
-        obj.graphics.beginFill(this.state.color).drawRect(this.state.x, this.state.y, 10, 10);
-        this.stage.update();
+    async draw() {
+        const model = {
+            x: this.dot.x,
+            y: this.dot.y,
+            color: this.state.color,
+            nickname: '游客',
+        };
+        this.list.push(model);
+        this.DrawRect();
+        try {
+            await request.post('/test/set', model);
+        } catch (error) {
+            console.log(error);
+        }
     }
 }
